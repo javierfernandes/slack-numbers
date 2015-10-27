@@ -3,9 +3,10 @@ mongoose.connect('mongodb://localhost/numbers');
 var Post = require('./Post');
 var Screwed = require('./Screwed');
 var User = require('./User');
+var cronJob = require("cron").CronJob;
 
 var WebSocket = require('ws'),
-    apiToken = "<< YOURS HERE >>", //Api Token from https://api.slack.com/web (Authentication section)
+    apiToken = "", //Api Token from https://api.slack.com/web (Authentication section)
     authUrl = "https://slack.com/api/rtm.start?token=" + apiToken,
     request = require("request"),
     userId = 'U03C73RAE', // Id for the user the bot is posting as
@@ -30,6 +31,11 @@ var lastMessageId = null
 function connectWebSocket(url) {
   var ws = new WebSocket(url);
 
+  // keep presence
+  new cronJob("00 */30 * * * *", function() {
+      updatePresence(ws)
+  }, null, true).start();
+
   ws.on('open', function() {
       console.log('Connected');
   });
@@ -39,60 +45,103 @@ function connectWebSocket(url) {
 
       // console.log(JSON.stringify(message))
 
-      if (message.type === 'message' && message.edited === undefined)
+      if (message.type === 'message' && message.edited === undefined) {
+        // numbers channel
         if (message.channel === channelId) {
-
-          // a number
-          var withoutMentions = removeMentions(message.text)
-          if (withoutMentions.match(/\d+/)) {
-            var number = Number(withoutMentions.match(/\d+/)[0]) // gets the first one ?
-
-            console.log("Found a number in message " + withoutMentions)
-
-            if (!number) return;
-
-            if (isTooOld(message)) {
-              console.log('message is too old ' + JSON.stringify(message))
-              return;
-            }
-            if (lastAuthor != null && message.user == lastAuthor && lastMessageId != null && mesasge.id != lastMessageId) {
-              console.log("la cago " + message.user + " secuencia incorrecta")
-
-              withUserName(message.user, function(userName) { 
-                 ws.send(JSON.stringify({ channel: botsChannel, id: 1, text: "La cagaste " + userName + "! Posteaste dos numeros seguidos !", type: "message" }));
-              })
-
-              saveScrewedUp(message.user, number, 'eco')
-              lastNumber = 0
-              return
-            }
-
-            if (lastNumber != null && number != lastNumber + 1) {
-              console.log("la cago: secuencia incorrecta")
-              
-              withUserName(message.user, function(userName) { 
-                ws.send(JSON.stringify({ channel: botsChannel, id: 1, text: "La cagaste " + userName + "! numero incorrecto ! Tenias que haber puesto " + (lastNumber +1) + " y pusiste " + number, type: "message" }));
-              })
-
-              saveScrewedUp(message.user, number, 'wrongSequence')
-              lastNumber = 0
-              return
-            }
-            
-            savePost(message, lastNumber)
-
-            lastNumber = number
-            lastAuthor = message.user
-          }
-          else if (message.text.match(/^perdio @<.*>/)) {
-            var who = message.text.substring(message.text.indexOf('@<') + 2, message.text.indexOf('>'))
-            saveScrewedUp(message, 0, 'perdio')
-          }
+          handleMessageToNumbersChannel(ws, message)
         }
-      else if (message.channel === statsChannel && message.text === "numbers-stats") {
+        else if (message.channel === statsChannel && (message.text === "numbers-stats" || message.text === "stats")) {
           stats(ws)
+        }
+        else if (message.channel === statsChannel && (message.text === "topcagadas?" || message.text === "cagadas?")) {
+            topCagadas(ws)
+        }
+        else if (message.channel === statsChannel && message.text === "next") {
+            var expecting = lastNumber == null ? "No se che, recién arranqué o me perdí :(" : ("El próximo que espero es  " + (lastNumber + 1))
+            ws.send(JSON.stringify({ channel: statsChannel, id: 1, text: expecting, type: "message" }));
+        }
       }
   });
+}
+
+function handleMessageToNumbersChannel(ws, message) {
+    var withoutMentions = removeMentions(message.text)
+    
+    if (withoutMentions.match(/\d+/)) {
+      // a number !
+      var number = Number(withoutMentions.match(/\d+/)[0]) // gets the first one ?
+
+      console.log("Found a number in message " + withoutMentions)
+
+      if (!number) return;
+
+      if (isTooOld(message)) {
+        console.log('message is too old ' + JSON.stringify(message))
+        return;
+      }
+      if (lastAuthor != null && message.user == lastAuthor && lastMessageId != null && mesasge.id != lastMessageId) {
+        console.log("la cago " + message.user + " secuencia incorrecta")
+
+        withUserName(message.user, function(userName) { 
+           ws.send(JSON.stringify({ channel: botsChannel, id: 1, text: "La cagaste " + userName + "! Posteaste dos numeros seguidos !", type: "message" }));
+        })
+
+        saveScrewedUp(message.user, number, 'eco')
+        lastNumber = 0
+        return
+      }
+
+      if (lastNumber != null && number != lastNumber + 1) {
+        console.log("la cago: secuencia incorrecta")
+        
+        withUserName(message.user, function(userName) { 
+          ws.send(JSON.stringify({ channel: botsChannel, id: 1, text: "La cagaste " + userName + "! numero incorrecto ! Tenias que haber puesto " + (lastNumber +1) + " y pusiste " + number, type: "message" }));
+        })
+
+        saveScrewedUp(message.user, number, 'wrongSequence')
+        lastNumber = 0
+        return
+      }
+      
+      askForUserName(ws, message)
+
+      savePost(message, lastNumber)
+
+      lastNumber = number
+      lastAuthor = message.user
+    }
+    else if (message.text.match(/^perdio @<.*>/)) {
+      var who = parseMention(message.text)
+      saveScrewedUp(who, message, lastNumber, 'perdio')
+    }
+    else if (message.text.match(/^soy .*$/)) {
+      var name = /^soy (.*)$/.exec(message.text)[1]
+      saveUserName(message.user, name)
+    }
+    else if (message.subtype == "channel_join") {
+      var who = parseMention(message.text)
+      ws.send(JSON.stringify({ channel: channelId, id: 1, text: "Bienvenido @" + who + "! Tratá de no cagarla mucho !", type: "message" }));
+    }
+}
+
+function parseMention(text) {
+  return text.substring(text.indexOf('@<') + 2, text.indexOf('>'))
+}
+
+function saveUserName(userId, name) {
+  User.findOneAndUpdate({'code' : userId}, {'name' : name}, function(err, person) {
+    if (err) {
+      console.log('Error updating user name: ' + name + ' for id:' + userId);
+    }
+  });
+}
+
+function askForUserName(ws, userId) {
+  withUserName(userId, function(userName) {
+    if (userName === userId) {
+      ws.send(JSON.stringify({ channel: channelId, id: 1, text: "Quien sos @" + userId + " ? (contestame con \"Soy xxx\"", type: "message" }));
+    }
+  })
 }
 
 function removeMentions(text) {
@@ -128,7 +177,7 @@ function savePost(message, number) {
 
 function withUserName(code, cb) {
   User.findOne({ 'code': code }, function (err, user) {
-    if (err) throw err;
+    if (err) return code
     cb((user != null) ? user.name : code)
   });
 }
@@ -154,19 +203,29 @@ function saveScrewedUp(user, lastNumber, cause) {
 
 function stats(ws) {
   withStats(function(stats) {
-    var userCodes = stats.map(function(stat) { return stat._id })
+    sendStats(ws, stats)    
+  })
+}
 
-    withUsers(userCodes, function(users) {
-        var entries = stats.map(function(stat) {
-           var entry = { 
-                user : findUserName(users, stat._id),
-                messages : stat.count
-           }
-           return entry.user + " : " + entry.messages
-        })
+function topCagadas(ws) {
+  withCagadas(function(stats) {
+    sendStats(ws, stats)
+  })
+}
 
-        ws.send(JSON.stringify({ channel: statsChannel, id: 1, text: "Stats ```" + entries.join("\n") + "```", type: "message" }));
-    })
+function sendStats(ws, stats) {
+  var userCodes = stats.map(function(stat) { return stat._id })
+
+  withUsers(userCodes, function(users) {
+      var entries = stats.map(function(stat) {
+         var entry = { 
+              user : findUserName(users, stat._id),
+              messages : stat.count
+         }
+         return entry.user + " : " + entry.messages
+      })
+
+      ws.send(JSON.stringify({ channel: statsChannel, id: 1, text: "Stats ```" + entries.join("\n") + "```", type: "message" }));
   })
 }
 
@@ -182,6 +241,16 @@ function findUserName(users, userCode) {
 
 function withStats(cb) {
   Post.aggregate([{$group : { _id : "$user", count: { $sum: 1 }}}, { $sort : { count : -1 } }], function(err, result) {
+      if (err) {
+        console.log(err);
+        return;
+      }
+      cb(result)
+  })
+}
+
+function withCagadas(cb) {
+  Screwed.aggregate([{$group : { _id : "$user", count: { $sum: 1 }}}, { $sort : { count : -1 } }], function(err, result) {
       if (err) {
         console.log(err);
         return;
