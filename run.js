@@ -140,11 +140,13 @@ function parseMention(text) {
 
 function saveUserName(userId, name) {
   var user = User.findOne({'code' : userId}, function(err, result) {
-    if (result) {
-
-    } else {
-
+    if (!result) {
+      user = new User()
+      user.code = userId
+      user.name = name
     }
+    user.name = name
+    user.save()
   })
 
   if (user == null)
