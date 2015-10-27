@@ -120,7 +120,7 @@ function handleMessageToNumbersChannel(ws, message) {
     }
     else if (message.subtype == "channel_join") {
       var who = parseMention(message.text)
-      ws.send(JSON.stringify({ channel: channelId, id: 1, text: "Bienvenido @" + who + "! Tratá de no cagarla mucho !", type: "message" }));
+      ws.send(JSON.stringify({ channel: channelId, id: 1, text: "Bienvenido <@" + who + ">! Tratá de no cagarla mucho !", type: "message" }));
     }
 }
 
@@ -139,7 +139,7 @@ function saveUserName(userId, name) {
 function askForUserName(ws, userId) {
   withUserName(userId, function(userName) {
     if (userName === userId) {
-      ws.send(JSON.stringify({ channel: channelId, id: 1, text: "Quien sos @" + userId + " ? (contestame con \"Soy xxx\"", type: "message" }));
+      ws.send(JSON.stringify({ channel: channelId, id: 1, text: "Quien sos <@" + userId + "> ? (contestame con \"Soy xxx\"", type: "message" }));
     }
   })
 }
