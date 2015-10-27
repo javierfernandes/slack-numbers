@@ -83,7 +83,8 @@ function handleMessageToNumbersChannel(ws, message) {
         console.log("la cago " + message.user + " secuencia incorrecta")
 
         withUserName(message.user, function(userName) { 
-           ws.send(JSON.stringify({ channel: botsChannel, id: 1, text: "La cagaste " + userName + "! Posteaste dos numeros seguidos !", type: "message" }));
+           var mention = toMention(userName)
+           ws.send(JSON.stringify({ channel: statsChannel, id: 1, text: "La cagaste " + mention + "! Posteaste dos numeros seguidos !", type: "message" }));
         })
 
         saveScrewedUp(message.user, number, 'eco')
@@ -91,11 +92,10 @@ function handleMessageToNumbersChannel(ws, message) {
         return
       }
 
-      if (lastNumber != null && number != lastNumber + 1) {
-        console.log("la cago: secuencia incorrecta")
-        
+      if (lastNumber != null && number != lastNumber + 1) {     
         withUserName(message.user, function(userName) { 
-          ws.send(JSON.stringify({ channel: botsChannel, id: 1, text: "La cagaste " + userName + "! numero incorrecto ! Tenias que haber puesto " + (lastNumber +1) + " y pusiste " + number, type: "message" }));
+          var mention = toMention(userName)
+          ws.send(JSON.stringify({ channel: statsChannel, id: 1, text: "La cagaste " + mention + "! numero incorrecto ! Tenias que haber puesto " + (lastNumber +1) + " y pusiste " + number, type: "message" }));
         })
 
         saveScrewedUp(message.user, number, 'wrongSequence')
@@ -110,7 +110,7 @@ function handleMessageToNumbersChannel(ws, message) {
       lastNumber = number
       lastAuthor = message.user
     }
-    else if (message.text.match(/^perdio @<.*>/)) {
+    else if (message.text.match(/^perdio <@.*>/)) {
       var who = parseMention(message.text)
       saveScrewedUp(who, message, lastNumber, 'perdio')
     }
@@ -124,11 +124,30 @@ function handleMessageToNumbersChannel(ws, message) {
     }
 }
 
+function toMention(nameOrId) {
+  if (nameOrId.match(/\d+/)) {
+    //id
+    return "<@" + nameOrId + ">"
+  }
+  else {
+    return nameOrId
+  }
+} 
+
 function parseMention(text) {
   return text.substring(text.indexOf('@<') + 2, text.indexOf('>'))
 }
 
 function saveUserName(userId, name) {
+  var user = User.findOne({'code' : userId}, function(err, result) {
+    if (result) {
+
+    } else {
+
+    }
+  })
+
+  if (user == null)
   User.findOneAndUpdate({'code' : userId}, {'name' : name}, function(err, person) {
     if (err) {
       console.log('Error updating user name: ' + name + ' for id:' + userId);
