@@ -5,6 +5,7 @@ var Screwed = require('./Screwed');
 var User = require('./User');
 var cronJob = require("cron").CronJob;
 var plotly = require('plotly')("USER", "KEY");
+var numToText = require('numtotext')
 
 var WebSocket = require('ws'),
     apiToken = "", //Api Token from https://api.slack.com/web (Authentication section)
@@ -46,7 +47,7 @@ function connectWebSocket(url) {
 
       // console.log(JSON.stringify(message))
 
-      if (message.type === 'message' && message.edited === undefined) {
+      if (message.type === 'message') {
         // numbers channel
         if (message.channel === channelId) {
           handleMessageToNumbersChannel(ws, message)
@@ -63,6 +64,9 @@ function connectWebSocket(url) {
         }
         else if (message.channel === statsChannel && message.text === "chart") {
             chart(ws)
+        }
+        else if (message.channel === statsChannel && message.text === "reset") {
+               lastNumber = null
         }
       }
   });
@@ -101,7 +105,7 @@ function handleMessageToNumbersChannel(ws, message) {
         
         withUserName(message.user, function(userName) { 
           var mention = toMention(userName)
-          ws.send(JSON.stringify({ channel: statsChannel, id: 1, text: "La cagaste " + mention + "! numero incorrecto ! Tenias que haber puesto " + supposed + " y pusiste " + number, type: "message" }));
+          ws.send(JSON.stringify({ channel: statsChannel, id: 1, text: "La cagaste " + mention + "! numero incorrecto ! Tenias que haber puesto " + numToText(supposed) + " y pusiste " + numToText(number), type: "message" }));
         })
 
         saveScrewedUp(message.user, number, 'wrongSequence', supposed)
@@ -123,6 +127,13 @@ function handleMessageToNumbersChannel(ws, message) {
     else if (message.subtype == "channel_join") {
       var who = parseMention(message.text)
       ws.send(JSON.stringify({ channel: channelId, id: 1, text: "Bienvenido <@" + who + ">! Tratá de no cagarla mucho !", type: "message" }));
+    }
+    else if (message.edited) {
+      withUserName(message.user, function(userName) { 
+           var mention = toMention(userName)
+           ws.send(JSON.stringify({ channel: statsChannel, id: 1, text: "La cagaste " + mention + "! Editaste un mensaje !!!", type: "message" }));
+      })
+      saveScrewedUp(message.user, 0, 'edited', supposed)
     }
 }
 
