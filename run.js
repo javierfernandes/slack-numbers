@@ -98,7 +98,7 @@ function handleMessageToNumbersChannel(ws, message) {
           ws.send(JSON.stringify({ channel: statsChannel, id: 1, text: "La cagaste " + mention + "! numero incorrecto ! Tenias que haber puesto " + (lastNumber +1) + " y pusiste " + number, type: "message" }));
         })
 
-        saveScrewedUp(message.user, number, 'wrongSequence')
+        saveScrewedUp(message.user, number, 'wrongSequence', lastNumber)
         lastNumber = 0
         return
       }
@@ -109,10 +109,6 @@ function handleMessageToNumbersChannel(ws, message) {
 
       lastNumber = number
       lastAuthor = message.user
-    }
-    else if (message.text.match(/^perdio <@.*>/)) {
-      var who = parseMention(message.text)
-      saveScrewedUp(who, message, lastNumber, 'perdio')
     }
     else if (message.text.match(/^soy .*$/)) {
       var name = /^soy (.*)$/.exec(message.text)[1]
@@ -139,22 +135,17 @@ function parseMention(text) {
 }
 
 function saveUserName(userId, name) {
-  var user = User.findOne({'code' : userId}, function(err, result) {
-    if (!result) {
+  User.findOne({'code' : userId}, function(err, user) {
+    if (!user) {
       user = new User()
       user.code = userId
       user.name = name
     }
     user.name = name
-    user.save()
+    user.save(function (err, saveResult) {
+      console.log("Saved user " + userId + " -> " + name)
+    })
   })
-
-  if (user == null)
-  User.findOneAndUpdate({'code' : userId}, {'name' : name}, function(err, person) {
-    if (err) {
-      console.log('Error updating user name: ' + name + ' for id:' + userId);
-    }
-  });
 }
 
 function askForUserName(ws, userId) {
@@ -210,9 +201,10 @@ function withUsers(codes, cb) {
   });
 }
 
-function saveScrewedUp(user, lastNumber, cause) {
+function saveScrewedUp(user, postedNumber, cause, lastNumber) {
  Screwed({
     user: user,
+    postedNumber: postedNumber,
     lastNumber: lastNumber,
     cause: cause
   }).save(function(err) {
