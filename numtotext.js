@@ -161,11 +161,11 @@ function NumeroALetras(num) {
         enteros: Math.floor(num),
         centavos: (((Math.round(num * 100)) - (Math.floor(num) * 100))),
         letrasCentavos: "",
-        letrasMonedaPlural: 'Córdobas',//"PESOS", 'Dólares', 'Bolívares', 'etcs'
-        letrasMonedaSingular: 'Córdoba', //"PESO", 'Dólar', 'Bolivar', 'etc'
+        letrasMonedaPlural: '',//"PESOS", 'Dólares', 'Bolívares', 'etcs'
+        letrasMonedaSingular: '', //"PESO", 'Dólar', 'Bolivar', 'etc'
 
-        letrasMonedaCentavoPlural: "CENTAVOS",
-        letrasMonedaCentavoSingular: "CENTAVO"
+        letrasMonedaCentavoPlural: "",
+        letrasMonedaCentavoSingular: ""
     };
 
     if (data.centavos > 0) {
