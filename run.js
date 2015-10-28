@@ -73,6 +73,7 @@ function handleMessageToNumbersChannel(ws, message) {
     
     if (withoutMentions.match(/\d+/)) {
       // a number !
+      var supposed = lastNumber + 1
       var number = Number(withoutMentions.match(/\d+/)[0]) // gets the first one ?
 
       console.log("Found a number in message " + withoutMentions)
@@ -91,18 +92,19 @@ function handleMessageToNumbersChannel(ws, message) {
            ws.send(JSON.stringify({ channel: statsChannel, id: 1, text: "La cagaste " + mention + "! Posteaste dos numeros seguidos !", type: "message" }));
         })
 
-        saveScrewedUp(message.user, number, 'eco')
+        saveScrewedUp(message.user, number, 'eco', supposed)
         lastNumber = 0
         return
       }
 
       if (lastNumber != null && number != lastNumber + 1) {     
+        
         withUserName(message.user, function(userName) { 
           var mention = toMention(userName)
-          ws.send(JSON.stringify({ channel: statsChannel, id: 1, text: "La cagaste " + mention + "! numero incorrecto ! Tenias que haber puesto " + (lastNumber +1) + " y pusiste " + number, type: "message" }));
+          ws.send(JSON.stringify({ channel: statsChannel, id: 1, text: "La cagaste " + mention + "! numero incorrecto ! Tenias que haber puesto " + supposed + " y pusiste " + number, type: "message" }));
         })
 
-        saveScrewedUp(message.user, number, 'wrongSequence', lastNumber)
+        saveScrewedUp(message.user, number, 'wrongSequence', supposed)
         lastNumber = 0
         return
       }
