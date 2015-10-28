@@ -4,6 +4,7 @@ var Post = require('./Post');
 var Screwed = require('./Screwed');
 var User = require('./User');
 var cronJob = require("cron").CronJob;
+var plotly = require('plotly')("USER", "KEY");
 
 var WebSocket = require('ws'),
     apiToken = "", //Api Token from https://api.slack.com/web (Authentication section)
@@ -59,6 +60,9 @@ function connectWebSocket(url) {
         else if (message.channel === statsChannel && message.text === "next") {
             var expecting = lastNumber == null ? "No se che, recién arranqué o me perdí :(" : ("El próximo que espero es  " + (lastNumber + 1))
             ws.send(JSON.stringify({ channel: statsChannel, id: 1, text: expecting, type: "message" }));
+        }
+        else if (message.channel === statsChannel && message.text === "chart") {
+            chart(ws)
         }
       }
   });
@@ -270,5 +274,56 @@ function withCagadas(cb) {
       }
       cb(result)
   })
+}
+
+function chart(ws) {
+  chartData(function(data) {
+     processChartData(data, function() {
+        result = data
+        ws.send(JSON.stringify({ channel: statsChannel, id: 1, text: "Messages by day https://plot.ly/~javierscvsoft/2.png", type: "message" }));
+     })
+  })
+}
+
+function chartData(cb) {
+    Post.aggregate([
+      {$group: { 
+        _id: {
+            year : { $year : "$date" },        
+            month : { $month : "$date" },        
+            day : { $dayOfMonth : "$date" },
+        },
+        count: { $sum: 1 }
+      }}
+      ], function(err, result) {
+      if (err) {
+        console.log(err);
+        return;
+      }
+
+      cb(result)
+  })
+}
+
+function processChartData(entries, then) {
+
+  var dates = entries.map(function(e) { return e._id.year + "-" + e._id.month + "-" + e._id.day })
+  var values = entries.map(function(e) { return e.count })
+  
+  var data = [
+  {
+    x: dates,
+    y: values,
+    type: "scatter"
+  }
+  ];
+
+  console.log("Chart for " + data)
+  var graphOptions = {filename: "count-by-day", fileopt: "overwrite"};
+  plotly.plot(data, graphOptions, function (err, msg) {
+      if (!err)
+        then()
+      console.log(msg);
+  });
 }
 

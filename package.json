@@ -9,9 +9,10 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "cron": "^1.0.9",
     "mongoose": "^4.2.2",
+    "plotly": "^1.0.5",
     "request": "^2.57.0",
-    "ws": "^0.7.2",
-    "cron": "^1.0.9"
+    "ws": "^0.7.2"
   }
 }
