@@ -5,7 +5,7 @@ var Screwed = require('./Screwed');
 var User = require('./User');
 var cronJob = require("cron").CronJob;
 var plotly = require('plotly')("USER", "KEY");
-var numToText = require('numtotext')
+var numToText = require('./numtotext')
 
 var WebSocket = require('ws'),
     apiToken = "", //Api Token from https://api.slack.com/web (Authentication section)
