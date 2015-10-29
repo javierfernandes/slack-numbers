@@ -59,7 +59,7 @@ function connectWebSocket(url) {
             topCagadas(ws)
         }
         else if (message.channel === statsChannel && message.text === "next") {
-            var expecting = lastNumber == null ? "No se che, recién arranqué o me perdí :(" : ("El próximo que espero es  " + (lastNumber + 1))
+            var expecting = lastNumber == null ? "No se che, recién arranqué o me perdí :(" : ("El próximo que espero es  " + numToText(lastNumber + 1))
             ws.send(JSON.stringify({ channel: statsChannel, id: 1, text: expecting, type: "message" }));
         }
         else if (message.channel === statsChannel && message.text === "chart") {
